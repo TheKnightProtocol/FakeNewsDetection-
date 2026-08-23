@@ -1,0 +1,10 @@
+primary_supplier,alternative_supplier,location,cost_delta_pct,lead_time_delta
+TSMC,Samsung,South Korea,12,10
+Toyota,Honda,Japan,3,0
+Samsung,LG Electronics,South Korea,6,3
+Maersk,MSC,Switzerland,11,8
+Intel,TSMC,Taiwan,15,14
+Bosch,Continental,Germany,7,5
+DHL,FedEx,USA,7,4
+Boeing,Airbus,France,9,6
+Novo Nordisk,Sanofi,France,5,-2
