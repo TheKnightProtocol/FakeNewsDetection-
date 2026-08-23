@@ -1,0 +1,13 @@
+id,name,lat,lng,country,industry,annual_spend_usd,tier,status
+1,TSMC,23.6978,120.9605,Taiwan,Semiconductor,5000000,1,Active
+2,Toyota,35.1815,136.9066,Japan,Automotive,8000000,1,Active
+3,Samsung,37.5665,126.9780,South Korea,Electronics,4500000,2,Active
+4,Maersk,55.6761,12.5683,Denmark,Shipping,9800000,1,Active
+5,Intel,45.3409,-122.9908,USA,Semiconductor,3200000,1,Active
+6,Bosch,48.7833,9.1833,Germany,Automotive,4600000,2,Active
+7,DHL,50.7374,7.0982,Germany,Logistics,3200000,1,Active
+8,Boeing,47.6062,-122.3321,USA,Aerospace,7200000,1,Active
+9,Novo Nordisk,55.6761,12.5683,Denmark,Pharmaceutical,1200000,1,Active
+10,LG Chem,37.5665,126.9780,South Korea,Chemicals,2100000,2,Active
+11,Adidas,48.1374,11.5755,Germany,Apparel,1800000,1,Active
+12,Samsung,37.5665,126.9780,South Korea,Electronics,4500000,2,Active
