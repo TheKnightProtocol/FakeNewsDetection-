@@ -1,114 +1,104 @@
 import streamlit as st
-import plotly.express as px
-import pandas as pd
-import hashlib
 import random
 from datetime import datetime
+import hashlib
 
-# -------- HARD-CODED DEMO DATA --------
+# -------- PAGE CONFIG --------
+st.set_page_config(
+    page_title="Supply Chain Defender",
+    page_icon="🛡️",
+    layout="wide"
+)
+
+# -------- HARD-CODED DATA --------
 SUPPLIERS = [
-    {"id": 1, "name": "TSMC", "lat": 23.6978, "lng": 120.9605, "country": "Taiwan", "industry": "Semiconductor", "annual_spend": 5000000, "tier": 1},
-    {"id": 2, "name": "Toyota", "lat": 35.1815, "lng": 136.9066, "country": "Japan", "industry": "Automotive", "annual_spend": 8000000, "tier": 1},
-    {"id": 3, "name": "Samsung", "lat": 37.5665, "lng": 126.9780, "country": "S. Korea", "industry": "Electronics", "annual_spend": 4500000, "tier": 2},
-    {"id": 4, "name": "Maersk", "lat": 55.6761, "lng": 12.5683, "country": "Denmark", "industry": "Shipping", "annual_spend": 9800000, "tier": 1},
-    {"id": 5, "name": "Intel", "lat": 45.3409, "lng": -122.9908, "country": "USA", "industry": "Semiconductor", "annual_spend": 3200000, "tier": 1},
-    {"id": 6, "name": "Bosch", "lat": 48.7833, "lng": 9.1833, "country": "Germany", "industry": "Automotive", "annual_spend": 4600000, "tier": 2},
-    {"id": 7, "name": "DHL", "lat": 50.7374, "lng": 7.0982, "country": "Germany", "industry": "Logistics", "annual_spend": 3200000, "tier": 1},
-    {"id": 8, "name": "Boeing", "lat": 47.6062, "lng": -122.3321, "country": "USA", "industry": "Aerospace", "annual_spend": 7200000, "tier": 1},
+    {"name": "TSMC", "lat": 23.6978, "lon": 120.9605, "country": "Taiwan", "industry": "Semiconductor", "spend": 5000000},
+    {"name": "Toyota", "lat": 35.1815, "lon": 136.9066, "country": "Japan", "industry": "Automotive", "spend": 8000000},
+    {"name": "Samsung", "lat": 37.5665, "lon": 126.9780, "country": "S. Korea", "industry": "Electronics", "spend": 4500000},
+    {"name": "Maersk", "lat": 55.6761, "lon": 12.5683, "country": "Denmark", "industry": "Shipping", "spend": 9800000},
+    {"name": "Intel", "lat": 45.3409, "lon": -122.9908, "country": "USA", "industry": "Semiconductor", "spend": 3200000},
+    {"name": "Bosch", "lat": 48.7833, "lon": 9.1833, "country": "Germany", "industry": "Automotive", "spend": 4600000},
+    {"name": "DHL", "lat": 50.7374, "lon": 7.0982, "country": "Germany", "industry": "Logistics", "spend": 3200000},
+    {"name": "Boeing", "lat": 47.6062, "lon": -122.3321, "country": "USA", "industry": "Aerospace", "spend": 7200000},
 ]
 
-DEMO_NEWS = [
-    {"title": "Magna International Reports Record Q3 Profits", "summary": "Exceeds expectations, supply chain strong.", "risk": "legitimate"},
-    {"title": "BREAKING: Major Fire at TSMC Fab in Taiwan", "summary": "Production halted, global chip shortage worsens.", "risk": "supplier"},
-    {"title": "Toyota Plant Strike Halts Production", "summary": "5000 workers walk out demanding higher wages.", "risk": "labor"},
-    {"title": "US Imposes New Tariffs on Chinese Semiconductors", "summary": "25% tariff hike, supply chains scramble.", "risk": "geopolitical"},
-    {"title": "DHL Announces $2B Green Logistics Investment", "summary": "Expansion of electric fleet in Europe.", "risk": "legitimate"},
-    {"title": "Hurricane Disrupts Gulf Coast Shipping Lanes", "summary": "Major ports closed, delays expected.", "risk": "weather"},
-    {"title": "Fake News: Samsung Battery Plant Explosion", "summary": "Company denies rumors, stock recovers.", "risk": "financial"},
-    {"title": "Boeing Supplier Quality Issues Delay Deliveries", "summary": "Fuselage defects found, timeline pushed back.", "risk": "supplier"},
+NEWS_ARTICLES = [
+    {"title": "Magna International Reports Record Profits", "summary": "Supply chain stable, growth expected", "risk": "Low"},
+    {"title": "BREAKING: TSMC Factory Fire in Taiwan", "summary": "Production halted, global chip shortage worsens", "risk": "Critical"},
+    {"title": "Toyota Plant Strike Halts Production", "summary": "5000 workers walk out demanding higher wages", "risk": "High"},
+    {"title": "US Imposes New Tariffs on Semiconductors", "summary": "25% tariff hike, supply chains scramble", "risk": "Medium"},
+    {"title": "DHL Announces $2B Green Logistics Investment", "summary": "Expansion of electric fleet in Europe", "risk": "Low"},
+    {"title": "Hurricane Disrupts Gulf Coast Shipping Lanes", "summary": "Major ports closed, delays expected", "risk": "High"},
+    {"title": "Samsung Battery Recall Imminent", "summary": "Defective batteries may cause fires", "risk": "Medium"},
+    {"title": "Boeing Supplier Quality Issues Delay Deliveries", "summary": "Fuselage defects found, timeline pushed", "risk": "High"},
 ]
 
-RISK_WEIGHTS = {
-    "financial": 0.9,
-    "supplier": 0.8,
-    "labor": 0.7,
-    "geopolitical": 0.75,
-    "weather": 0.6,
-    "legitimate": 0.1,
-}
+RISK_SCORES = {"Low": 0.2, "Medium": 0.5, "High": 0.8, "Critical": 0.95}
 
 # -------- SESSION STATE --------
-if "initialized" not in st.session_state:
-    st.session_state.initialized = True
-    st.session_state.articles = pd.DataFrame()
-    st.session_state.risk_data = pd.DataFrame()
-    st.session_state.news_loaded = False
+if "loaded" not in st.session_state:
+    st.session_state.loaded = False
+    st.session_state.risk_data = []
+
+if "risk_analyzed" not in st.session_state:
+    st.session_state.risk_analyzed = False
 
 # -------- SIDEBAR --------
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/000000/security-checked--v1.png", width=60)
     st.title("🛡️ Defender")
     
-    if st.button("📰 Load Demo News", use_container_width=True):
-        articles = []
-        for item in DEMO_NEWS:
-            articles.append({
-                "id": hashlib.md5(item["title"].encode()).hexdigest()[:8],
-                "title": item["title"],
-                "summary": item["summary"],
-                "link": "#",
-                "published": datetime.now().isoformat(),
-                "source": "Demo Feed",
-                "risk_categories": [item["risk"]]
-            })
-        st.session_state.articles = pd.DataFrame(articles)
-        st.session_state.news_loaded = True
-        st.success(f"✅ Loaded {len(articles)} articles")
+    if st.button("📰 Load News", use_container_width=True):
+        st.session_state.loaded = True
+        st.success("✅ 8 articles loaded")
         st.rerun()
     
-    if st.button("⚙️ Run Risk Analysis", use_container_width=True):
-        if not st.session_state.news_loaded:
+    if st.button("⚙️ Analyze Risks", use_container_width=True):
+        if not st.session_state.loaded:
             st.warning("Load news first!")
         else:
-            # Build supplier risk scores
-            supplier_df = pd.DataFrame(SUPPLIERS)
-            risk_scores = []
-            
-            for _, supplier in supplier_df.iterrows():
-                base_risk = random.uniform(0.1, 0.3)  # baseline
+            risk_data = []
+            for supplier in SUPPLIERS:
+                base_risk = random.uniform(0.1, 0.3)
                 
-                # Check articles mentioning this supplier
-                for _, article in st.session_state.articles.iterrows():
-                    if supplier["name"].lower() in article["title"].lower():
-                        for cat in article["risk_categories"]:
-                            base_risk = max(base_risk, RISK_WEIGHTS.get(cat, 0.5) * random.uniform(0.8, 1.2))
+                for news in NEWS_ARTICLES:
+                    if supplier["name"].lower() in news["title"].lower():
+                        base_risk = max(base_risk, RISK_SCORES.get(news["risk"], 0.5))
                 
                 final_risk = min(base_risk, 1.0)
-                exposure = supplier["annual_spend"] * final_risk
+                exposure = supplier["spend"] * final_risk
                 
-                risk_scores.append({
+                risk_data.append({
                     "name": supplier["name"],
                     "country": supplier["country"],
                     "industry": supplier["industry"],
-                    "tier": supplier["tier"],
                     "risk_score": round(final_risk, 3),
-                    "exposure_at_risk": round(exposure, 0),
-                    "latitude": supplier["lat"],
-                    "longitude": supplier["lng"],
+                    "exposure": round(exposure, 0),
+                    "lat": supplier["lat"],
+                    "lon": supplier["lon"],
                 })
             
-            st.session_state.risk_data = pd.DataFrame(risk_scores)
+            st.session_state.risk_data = risk_data
+            st.session_state.risk_analyzed = True
             st.success("✅ Analysis complete!")
             st.balloons()
             st.rerun()
     
     st.divider()
-    if st.button("📥 Download CSV Report", use_container_width=True):
-        if not st.session_state.risk_data.empty:
-            csv = st.session_state.risk_data.to_csv(index=False)
+    if st.button("📥 Export CSV", use_container_width=True):
+        if st.session_state.risk_analyzed:
+            import csv
+            from io import StringIO
+            
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerow(["Supplier", "Country", "Industry", "Risk Score", "Exposure ($)"])
+            for r in st.session_state.risk_data:
+                writer.writerow([r["name"], r["country"], r["industry"], f"{r['risk_score']:.1%}", f"${r['exposure']:,.0f}"])
+            
             st.download_button(
-                label="⬇️ Click to Download CSV",
-                data=csv,
+                label="⬇️ Download CSV",
+                data=output.getvalue(),
                 file_name=f"supply_chain_risk_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
             )
@@ -119,50 +109,80 @@ with st.sidebar:
 st.title("🛡️ Supply Chain Defender")
 st.caption("Real‑time Risk Intelligence – Zero external dependencies")
 
-if not st.session_state.risk_data.empty:
-    df = st.session_state.risk_data
+if st.session_state.risk_analyzed:
+    data = st.session_state.risk_data
     
+    # Metrics
     col1, col2, col3 = st.columns(3)
-    col1.metric("Suppliers Monitored", len(df))
-    col2.metric("Average Risk", f"{df['risk_score'].mean():.1%}")
-    col3.metric("Total Exposure", f"${df['exposure_at_risk'].sum()/1e6:.1f}M")
+    col1.metric("Suppliers", len(data))
+    col2.metric("Avg Risk", f"{sum(r['risk_score'] for r in data)/len(data):.1%}")
+    col3.metric("Total Exposure", f"${sum(r['exposure'] for r in data)/1e6:.1f}M")
     
-    tab1, tab2 = st.tabs(["📊 Supplier Risk Table", "🌍 Global Heatmap"])
+    # Tabs
+    tab1, tab2 = st.tabs(["📊 Risk Table", "🌍 Map"])
     
     with tab1:
-        st.dataframe(
-            df.sort_values("risk_score", ascending=False),
-            use_container_width=True,
-            column_config={
-                "risk_score": st.column_config.ProgressColumn("Risk", format="%.1f%%", min_value=0, max_value=1),
-                "exposure_at_risk": st.column_config.NumberColumn("Exposure ($)", format="$%.0f"),
-            }
-        )
+        # Build table manually
+        table_data = []
+        for r in sorted(data, key=lambda x: x["risk_score"], reverse=True):
+            table_data.append([
+                r["name"],
+                r["country"],
+                r["industry"],
+                f"{r['risk_score']:.1%}",
+                f"${r['exposure']:,.0f}"
+            ])
+        
+        st.table({
+            "Supplier": [row[0] for row in table_data],
+            "Country": [row[1] for row in table_data],
+            "Industry": [row[2] for row in table_data],
+            "Risk": [row[3] for row in table_data],
+            "Exposure": [row[4] for row in table_data]
+        })
     
     with tab2:
-        fig = px.scatter_mapbox(
-            df,
-            lat="latitude",
-            lon="longitude",
-            size="exposure_at_risk",
-            color="risk_score",
-            hover_name="name",
-            color_continuous_scale="RdYlGn_r",
-            size_max=60,
-            zoom=1,
-            height=550,
-        )
-        fig.update_layout(mapbox_style="open-street-map", margin=dict(l=0, r=0, t=0, b=0))
-        st.plotly_chart(fig, use_container_width=True)
+        # Use Streamlit's built-in map
+        map_data = []
+        for r in data:
+            map_data.append({
+                "lat": r["lat"],
+                "lon": r["lon"],
+                "size": r["risk_score"] * 100,
+                "name": r["name"],
+                "risk": f"{r['risk_score']:.1%}"
+            })
+        
+        # st.map uses the first two columns as lat/lon
+        import pandas as pd
+        df = pd.DataFrame(map_data)
+        st.map(df, size="size", color="#FF4B4B")
+        
+        # Show legend
+        st.caption("🔴 Red = High Risk | 🟢 Green = Low Risk (circle size indicates risk level)")
     
-    # Show the news that triggered risks
-    with st.expander("📰 News Alerts Used for Analysis"):
-        if st.session_state.news_loaded:
-            st.dataframe(st.session_state.articles[["title", "summary", "source"]])
-        else:
-            st.info("Load news first")
+    with st.expander("📰 News Alerts"):
+        for news in NEWS_ARTICLES:
+            st.markdown(f"**{news['title']}**")
+            st.caption(f"{news['summary']} | Risk: {news['risk']}")
+            st.divider()
+
 else:
-    st.info("👈 Start by clicking **Load Demo News** then **Run Risk Analysis**")
+    st.info("👈 Click **Load News** then **Analyze Risks** to start")
+    
+    # Show preview
+    with st.expander("ℹ️ How it works"):
+        st.markdown("""
+        1. **Load News** – Simulates real‑time supply chain alerts
+        2. **Analyze Risks** – Calculates supplier exposure based on news
+        3. **View Dashboard** – See risk scores, map, and export data
+        
+        This is a **zero‑dependency** prototype that demonstrates:
+        - Real‑time risk monitoring
+        - Supplier exposure quantification
+        - Geographic risk visualization
+        - Executive reporting (CSV export)
+        """)
 
 st.divider()
-st.caption("Built for Supply Chain Resilience – No external dependencies, runs anywhere.")
+st.caption("Built for Supply Chain Resilience | Deploys anywhere with Streamlit")
